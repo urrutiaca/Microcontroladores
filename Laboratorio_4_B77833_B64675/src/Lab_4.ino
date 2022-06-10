@@ -18,6 +18,7 @@ Adafruit_PCD8544 display = Adafruit_PCD8544(7, 5, 6, 4, 8);
 
 //Comunicacion USART
 const int comunicacion=53;
+unsigned long USART_timer;
 //Sensor Humedad
 const int Sensor_Humedad= A5;
 //Sensor de Temperatura
@@ -45,6 +46,11 @@ const int ajuste_eje_y=A3;
 Servo EjeX;
 Servo EjeY;
 //Ajuste de panel solar
+
+//EEPROM
+int EEPROM_adr = 0;
+unsigned long EEPROM_timer;
+unsigned long timing;
 
 
 float Temperatura_Termistor(){ // Informacion extraída de: https://www.circuitbasics.com/arduino-thermistor-temperature-sensor-tutorial/ 
@@ -88,6 +94,9 @@ void setup() {
   pinMode(ajuste_eje_y, INPUT);
   EjeX.attach(9);
   EjeY.attach(10);
+ //EEPROM
+ reset_EEPROM();
+ time = milis();
 
 }
 void control_servos(){
@@ -105,7 +114,7 @@ void Alerta_bateria_baja(){
 	else digitalWrite(Luz_Alarma, LOW); 
 }
 void USART_Activa(){
-	if(contador<5){
+	if(contador<5){ // parpadeo
 	if(digitalRead(activacion_usart)==HIGH){
 	 digitalWrite(Luz_USART, HIGH);
 	 delay(200);
@@ -120,6 +129,77 @@ void USART_Activa(){
 	}
 	 
 }
+
+void USART_comm(){ // comunicacion USART a los 10 min
+	
+	if (digitalRead(activacion_usart == HIGH){
+		if(time - USART_timer >600000){
+		
+			USART_timer = time;
+			Serial.print("Humedad:");
+        		Serial.println(analogRead(Sensor_Humedad)/10.23);
+	      	Serial.print("Temperatura:");
+        		Serial.println(Temperatura_Termistor());
+	      	Serial.print("Intensidad de luz:");
+        		Serial.println(Intensidad_Luz(analogRead(Sensor_Luminocidad)));
+        		Serial.print("Velocidad del Viento:");
+        		Serial.println((0.029325)*analogRead(Velocidad_viento));
+	 		Serial.print("Lluvia:");
+	 			if(digitalRead(Lluvia) == HIGH){ 
+	 				Serial.print("NO"); //Esta lloviendo
+	 				
+	 			} else {
+	 				Serial.print("SI"); //No esta lloviendo
+	 			} 
+		}
+	
+	}
+}
+
+void reset_EEPROM(){
+	for (int 1=0; i < EEPROM.length(); i++){
+		EEPROM.write(i,0); // reemplaza datos al escribir ceros
+	}
+}
+
+void EEMPROM_checkadr(){
+
+	if (EEMPROM_adr == EEPROM.length()){
+		EEPROM_adr = 0;
+		reset_EEPROM();
+	}
+
+}
+
+void write_EEPROM(){
+	if (time - EEPROM_timer > 300000){
+
+	// Esribir sensor de lluvia
+	EEMPROM_checkadr();
+	EEPROM.write(EEPROM_adr, digitalRead(Lluvia));
+	++EEPROM_adr;
+	// Escribir sensor de humedad
+	EEMPROM_checkadr();
+	EEPROM.write(EEPROM_adr, analogRead(Sensor_Humedad)/10.23);
+	++EEPROM_adr;
+	//Escribir sensor de temperatura
+	EEMPROM_checkadr();
+	EEPROM.write(EEPROM_adr, Temperatura_Termistor());
+	++EEPROM_adr;
+	//Escribir sensor de luz
+	EEMPROM_checkadr();
+	EEPROM.write(EEPROM_adr, Intensidad_Luz(analogRead(Sensor_Luminocidad)));
+	++EEPROM_adr;
+	// Escribir sensor de velocidad de viento
+	EEMPROM_checkadr();
+	EEPROM.write(EEPROM_adr,(0.029325)*analogRead(Velocidad_viento));
+	++EEPROM_adr;
+	
+	}
+}
+
+
+
 
 void loop() { //Loop
      // Temperatura
@@ -172,5 +252,8 @@ void loop() { //Loop
     // Alarma Bateria baja
     Alerta_bateria_baja();
     // USART ACTIVA
-    USART_Activa();
+	USART_comm(); // comunicacion de datos
+     USART_Activa(); // parpadeo
+	// EEPROM
+	write_EEPROM();
 }
